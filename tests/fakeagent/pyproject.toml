@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "borealis-node-fakeagent"
+version = "0.0.1"
+description = "Test-only fake Borealis agent used by borealis-node's tests."
+requires-python = ">=3.10"
+
+[project.scripts]
+fake-agent = "fakeagent:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

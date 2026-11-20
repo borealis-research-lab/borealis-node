@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:borealis:node-report:1",
+  "title": "Borealis node report v1",
+  "description": "Structure of borealis-node-report/1. The invariants in node-report-v1.md (outcome aggregation, embedding rules, complete flag, size budget) are also normative; see tools/check_report.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["standard", "node", "run", "outcome", "complete", "agents"],
+  "properties": {
+    "standard": {"const": "borealis-node-report/1"},
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "borealis-node"},
+        "version": {"type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[\\u0020-\\u007e]+$", "not": {"pattern": "\\n"}}
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "started_at", "finished_at"],
+      "properties": {
+        "id": {"$ref": "urn:borealis:agent-report:1#/$defs/uuid4"},
+        "started_at": {"$ref": "urn:borealis:agent-report:1#/$defs/timestamp"},
+        "finished_at": {"$ref": "urn:borealis:agent-report:1#/$defs/timestamp"}
+      }
+    },
+    "outcome": {"enum": ["ok", "degraded", "failed"]},
+    "complete": {"type": "boolean"},
+    "agents": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/agentEntry"}}
+  },
+  "$defs": {
+    "configName": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$", "not": {"pattern": "\\n"}},
+    "agentEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config_name", "expected_name", "outcome", "execution", "validation", "diagnostic", "report_embedding", "report", "report_summary"],
+      "properties": {
+        "config_name": {"$ref": "#/$defs/configName"},
+        "expected_name": {"$ref": "urn:borealis:agent-report:1#/$defs/agentName"},
+        "outcome": {"enum": ["ok", "degraded", "failed"]},
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["started_at", "finished_at", "exit_code", "timed_out", "killed", "stdout_bytes", "output_too_large", "launch_error"],
+          "properties": {
+            "started_at": {"$ref": "urn:borealis:agent-report:1#/$defs/timestamp"},
+            "finished_at": {"$ref": "urn:borealis:agent-report:1#/$defs/timestamp"},
+            "exit_code": {"type": ["integer", "null"], "minimum": -9007199254740991, "maximum": 9007199254740991},
+            "timed_out": {"type": "boolean"},
+            "killed": {"type": "boolean"},
+            "stdout_bytes": {"$ref": "urn:borealis:agent-report:1#/$defs/count"},
+            "output_too_large": {"type": "boolean"},
+            "launch_error": {"enum": [null, "not-found", "not-a-file", "spawn-failed", "isolation-failed", "describe-failed", "describe-mismatch"]}
+          }
+        },
+        "validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["result", "problems", "problems_total"],
+          "properties": {
+            "result": {"enum": ["valid", "invalid", "not-run"]},
+            "problems": {"type": "array", "maxItems": 50, "items": {"type": "string", "minLength": 1, "maxLength": 300, "pattern": "^[\\u0020-\\u007e]+$", "not": {"pattern": "\\n"}}},
+            "problems_total": {"$ref": "urn:borealis:agent-report:1#/$defs/count"}
+          }
+        },
+        "diagnostic": {"oneOf": [{"type": "null"}, {"type": "string", "maxLength": 2000, "pattern": "^[^\\u0000-\\u0008\\u000b-\\u001f\\u007f]*$"}]},
+        "report_embedding": {"enum": ["embedded", "omitted-for-size", "none"]},
+        "report": {"oneOf": [{"type": "null"}, {"$ref": "urn:borealis:agent-report:1"}]},
+        "report_summary": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/reportSummary"}]}
+      }
+    },
+    "reportSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "status", "findings_total", "counts_by_severity", "finding_ids", "finding_ids_total", "saved_as"],
+      "properties": {
+        "bytes": {"$ref": "urn:borealis:agent-report:1#/$defs/count"},
+        "status": {"enum": ["ok", "partial", "error"]},
+        "findings_total": {"$ref": "urn:borealis:agent-report:1#/$defs/count"},
+        "counts_by_severity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["low", "medium", "high"],
+          "properties": {
+            "low": {"$ref": "urn:borealis:agent-report:1#/$defs/count"},
+            "medium": {"$ref": "urn:borealis:agent-report:1#/$defs/count"},
+            "high": {"$ref": "urn:borealis:agent-report:1#/$defs/count"}
+          }
+        },
+        "finding_ids": {"type": "array", "maxItems": 200, "items": {"type": "string", "maxLength": 98, "pattern": "^[\\u0020-\\u007e]+$", "not": {"pattern": "\\n"}}},
+        "finding_ids_total": {"$ref": "urn:borealis:agent-report:1#/$defs/count"},
+        "saved_as": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}\\.json$", "not": {"pattern": "\\n"}}]}
+      }
+    }
+  }
+}

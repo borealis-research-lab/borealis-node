@@ -104,3 +104,14 @@ Borealis Node is meant for agents an administrator has deliberately installed an
 ## Licence
 
 Apache License 2.0. See [LICENSE](LICENSE).
+
+## Integration test (synthetic)
+
+`integration/run_integration.py` runs the **real installed** Nyyrikki, Ilmarinen and Borealis Node together through five stages (discovery, Ilmarinen lifecycle, Nyyrikki detection, Node orchestration, failure handling) plus a privacy check of all saved evidence. It uses only synthetic data in a temporary directory, which is removed afterwards, and needs only the standard library:
+
+```bash
+python integration/run_integration.py --nyyrikki /abs/path/nyyrikki \
+    --ilmarinen /abs/path/ilmarinen --borealis-node /abs/path/borealis-node --out ./itest-evidence
+```
+
+Exit code 0 means every check passed, 1 means a check failed, and 2 means a setup error. `--out` must not already exist. **A pass shows the components work together as designed on synthetic data on that machine.** It does not show detection of real attacks, production readiness or security assurance.

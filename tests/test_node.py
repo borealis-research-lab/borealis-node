@@ -387,3 +387,40 @@ def test_text_summary_counts_omitted_reports(capsys, tmp_path, monkeypatch):
 def test_json_report_is_unchanged_by_the_summary(capsys, tmp_path):
     _, report, _ = run_node(capsys, tmp_path, [agent("a", "ok")])
     assert set(report) == {"standard", "node", "run", "outcome", "complete", "agents"}
+
+
+# --- agent versions and evidence references (presentation only) -------------------------------------
+
+
+def test_agents_command_shows_validated_name_and_version(capsys, tmp_path, monkeypatch):
+    cfg = write_config(tmp_path, [agent("good", "ok"), agent("missing", "ok", exe=tmp_path / "x.exe")])
+    main(["agents", "--config", str(cfg)])
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].split() == ["good", "compatible", "fake", "0.0.1"]
+    assert lines[1].split() == ["missing", "missing"]  # nothing claimed for an agent that wasn't run
+    monkeypatch.setenv("FAKE_DESCRIBE_NAME", "impostor")
+    main(["agents", "--config", str(cfg)])
+    first = capsys.readouterr().out.splitlines()[0]
+    assert first.split() == ["good", "incompatible"]  # an unvalidated identity is never displayed
+
+
+def test_text_view_shows_agent_evidence_references(capsys, tmp_path):
+    cfg = write_config(tmp_path, [agent("a", "ok")])
+    main(["run", "--config", str(cfg)])
+    out = capsys.readouterr().out
+    assert "[MEDIUM] thing-found: synthetic" in out
+    assert "      evidence: synthetic:1" in out
+
+
+def test_evidence_references_are_capped_with_a_count():
+    finding = {"evidence": [{"ref": f"windows-security:record:{2000 + i}"} for i in range(500)], "evidence_total": 600}
+    assert node.evidence_refs(finding) == (
+        "windows-security:record:2000, windows-security:record:2001, windows-security:record:2002 (+597 more)")
+    single = {"evidence": [{"ref": "file:docs:a.txt"}], "evidence_total": 1}
+    assert node.evidence_refs(single) == "file:docs:a.txt"
+
+
+def test_evidence_references_are_rendered_safely():
+    finding = {"evidence": [{"ref": "x:evil\x1b[31m\nFinding 9"}], "evidence_total": 1}
+    rendered = node.evidence_refs(finding)
+    assert "\x1b" not in rendered and "\n" not in rendered

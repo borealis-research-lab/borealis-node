@@ -45,18 +45,22 @@ def cmd_agents(agents: list[config.AgentConfig]) -> int:
     worst = 0
     for agent in agents:
         exe = Path(agent.executable)
+        identity = ""
         if not exe.is_file():
             status = "missing"
         else:
             result = procexec.run(agent.executable, ["describe"], node.DESCRIBE_TIMEOUT, agent.cwd)
             try:
-                problems = validate_describe(strict_loads(result.stdout), agent.expected_name) \
-                    if result.exit_code == 0 and not result.launch_error else ["describe failed"]
+                described = strict_loads(result.stdout) if result.exit_code == 0 and not result.launch_error else None
+                problems = validate_describe(described, agent.expected_name) if described is not None \
+                    else ["describe failed"]
             except InvalidJson:
                 problems = ["describe output is not valid JSON"]
             status = "compatible" if not problems else "incompatible"
+            if not problems:  # only a validated describe is shown, sanitised like all agent text
+                identity = f"{node._safe(described['name'])} {node._safe(described['version'])}"
         worst = max(worst, 0 if status == "compatible" else 1)
-        print(f"{node._safe(agent.config_name):<20} {status}")
+        print(f"{node._safe(agent.config_name):<20} {status:<13} {identity}".rstrip())
     return worst
 
 

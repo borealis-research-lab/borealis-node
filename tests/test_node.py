@@ -342,3 +342,48 @@ def test_validator_never_crashes_on_mutated_agent_output(example):
                 parent[path[-1]] = replacement
             problems = validate_agent_report(mutated)
             assert all(p.isascii() and len(p) <= 300 for p in problems)
+
+
+# --- findings summary in the text view (presentation only) ----------------------------------------
+
+
+def run_text(capsys, tmp_path, agents):
+    cfg = write_config(tmp_path, agents)
+    code = main(["run", "--config", str(cfg)])
+    return code, capsys.readouterr().out
+
+
+def test_text_summary_separates_findings_from_outcome(capsys, tmp_path):
+    code, out = run_text(capsys, tmp_path, [agent("a", "ok"), agent("b", "error-with-finding")])
+    assert "Outcome: degraded" in out and code == 1  # outcome and exit code unchanged
+    assert "Findings: 2 (1 high, 1 medium, 0 low)" in out
+    assert "the outcome describes whether the agents' analysis completed" in out
+
+
+def test_text_summary_warns_that_ok_is_not_clean(capsys, tmp_path):
+    code, out = run_text(capsys, tmp_path, [agent("a", "ok")])
+    assert "Outcome: ok" in out and code == 0
+    assert "Findings: 1 (0 high, 1 medium, 0 low)" in out
+    assert "does not mean nothing was found" in out
+
+
+def test_text_summary_with_no_findings(capsys, tmp_path):
+    _, out = run_text(capsys, tmp_path, [agent("a", "empty")])
+    assert "Findings: 0 (0 high, 0 medium, 0 low)" in out
+    assert "does not mean the system is safe" in out
+
+
+def test_text_summary_reports_unknown_agents(capsys, tmp_path):
+    _, out = run_text(capsys, tmp_path, [agent("works", "ok"), agent("gone", "ok", exe=tmp_path / "missing.exe")])
+    assert "unknown for: gone (no valid report)" in out
+
+
+def test_text_summary_counts_omitted_reports(capsys, tmp_path, monkeypatch):
+    monkeypatch.setattr(node, "EMBED_BUDGET", 200_000)
+    _, out = run_text(capsys, tmp_path, [agent("big", "large", 400)])
+    assert "Findings: 400 (0 high, 400 medium, 0 low)" in out
+
+
+def test_json_report_is_unchanged_by_the_summary(capsys, tmp_path):
+    _, report, _ = run_node(capsys, tmp_path, [agent("a", "ok")])
+    assert set(report) == {"standard", "node", "run", "outcome", "complete", "agents"}

@@ -73,6 +73,15 @@ Exit codes for `run`: **0** = every agent ok; **1** = degraded or failed (a repo
 | **On timeout or too much output** | Closing the job kills the agent **and all its descendants** | The whole process group is killed. **Limitation:** a child that deliberately leaves the group can survive |
 | **Output limits** | stdout 10 MiB, stderr 64 KiB, both read on background threads | same |
 
+### Not a security sandbox
+
+This isolation is **process-tree containment and resource bounding, not a security sandbox**:
+- **Windows Job Objects** contain the process tree, but don't restrict filesystem or network access.
+- **Linux process groups** are process management, not a security boundary against a deliberately hostile agent.
+- Neither platform currently enforces a **CPU or memory quota**.
+
+Borealis Node is meant for agents an administrator has deliberately installed and trusts. **Don't use it to run untrusted third-party agents.**
+
 ## Report size and output files
 
 - The combined report never exceeds **64 MiB**:

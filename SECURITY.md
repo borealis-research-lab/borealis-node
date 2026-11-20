@@ -12,3 +12,4 @@ If private vulnerability reporting is enabled for this repository, report suspec
 - Agent output is untrusted data. It is strictly parsed, fully validated, never executed or interpreted, and sanitised before display.
 - On Windows, agents run in a Job Object assigned before the process runs (fail closed). On POSIX, agents run in their own process group, but a child that deliberately leaves the group can survive.
 - The Node performs no detection and no remediation, and opens no network connections.
+- The isolation is process-tree containment, **not a security sandbox**: it doesn't restrict an agent's filesystem or network access, and doesn't enforce CPU or memory quotas. Only run agents you trust.

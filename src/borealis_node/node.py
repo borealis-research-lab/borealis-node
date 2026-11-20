@@ -203,6 +203,17 @@ def _safe(value: Any) -> str:
     return "".join(out)
 
 
+MAX_TEXT_REFS = 3
+
+
+def evidence_refs(finding: dict) -> str:
+    """The agent's own evidence references, shown as given (the Node does not interpret
+    agent-specific reference formats): the first few, then how many more the agent reported."""
+    refs = [_safe(e["ref"]) for e in finding["evidence"][:MAX_TEXT_REFS]]
+    more = finding["evidence_total"] - len(refs)
+    return ", ".join(refs) + (f" (+{more} more)" if more > 0 else "")
+
+
 def findings_summary(report: dict) -> list[str]:
     """Separates WHAT WAS FOUND from WHETHER THE ANALYSIS RAN. Counts come only from the
     agents' own reports (embedded or summarised); the Node does not assess findings itself."""
@@ -268,5 +279,6 @@ def to_text(report: dict, snippets: dict[str, str]) -> str:
                   "-" * 40]
         for f in sorted(r["findings"], key=lambda f: {"high": 0, "medium": 1, "low": 2}[f["severity"]]):
             lines.append(f"  [{f['severity'].upper()}] {_safe(f['rule_id'])}: {_safe(f['observation'])}")
+            lines.append(f"      evidence: {evidence_refs(f)}")
     lines += ["", "Severity is each agent's rule label, not a probability. Borealis Node does not perform detection."]
     return "\n".join(lines) + "\n"

@@ -203,9 +203,40 @@ def _safe(value: Any) -> str:
     return "".join(out)
 
 
+def findings_summary(report: dict) -> list[str]:
+    """Separates WHAT WAS FOUND from WHETHER THE ANALYSIS RAN. Counts come only from the
+    agents' own reports (embedded or summarised); the Node does not assess findings itself."""
+    total, by_severity, unknown = 0, {"high": 0, "medium": 0, "low": 0}, []
+    for e in report["agents"]:
+        if e["report"] is not None:
+            total += e["report"]["findings_total"]
+            for f in e["report"]["findings"]:
+                by_severity[f["severity"]] += 1
+        elif e["report_summary"] is not None:
+            total += e["report_summary"]["findings_total"]
+            for severity, n in e["report_summary"]["counts_by_severity"].items():
+                by_severity[severity] += n
+        else:
+            unknown.append(_safe(e["config_name"]))
+    listed = sum(by_severity.values())
+    lines = [f"Findings: {total} ({by_severity['high']} high, {by_severity['medium']} medium, {by_severity['low']} low)"]
+    if total > listed:
+        lines.append(f"  plus {total - listed} not listed by the reporting agent(s) because of report limits")
+    if unknown:
+        lines.append(f"  unknown for: {', '.join(unknown)} (no valid report)")
+    if report["outcome"] == "ok" and total:
+        lines.append("Note: outcome 'ok' means every agent completed its analysis. It does not mean nothing was found.")
+    elif report["outcome"] == "ok":
+        lines.append("Note: no findings does not mean the system is safe; agents only check what they are configured to check.")
+    else:
+        lines.append("Note: the outcome describes whether the agents' analysis completed; the findings describe what they found.")
+    return lines
+
+
 def to_text(report: dict, snippets: dict[str, str]) -> str:
     lines = ["Borealis Node Report", "====================", "",
-             f"Outcome: {report['outcome']}" + ("" if report["complete"] else " (some reports omitted for size)"), "",
+             f"Outcome: {report['outcome']}" + ("" if report["complete"] else " (some reports omitted for size)"),
+             *findings_summary(report), "",
              f"{'Agent':<20} {'Outcome':<10} {'Findings':>8}  Notes"]
     for e in report["agents"]:
         source = e["report"] or e["report_summary"]
